@@ -6,8 +6,9 @@ library(EnhancedVolcano)
 library(stringr)
 
 ### Read data
-segment = 3
-hm <- read_excel(paste("Segment ", segment, "_Proteome Data_Für Alina.xlsx", sep=""))
+segment = 5
+
+hm <- read_excel(paste0("../data/Segment ", segment, "_Proteome Data_Für Alina.xlsx"))
 hm <- data.frame(hm)
 rownames(hm) <- hm$id
 colnames(hm)
@@ -20,7 +21,6 @@ hm$id[which(hm$id=="")] = rownames(hm)[which(hm$id=="")]
 hm$id = gsub("_", "", hm$id)
 
 ### Expression heatmap
-
 expr_cols <- c(23:ncol(hm))
 expr_cols <- colnames(hm[,expr_cols]) %>%
   str_subset("WT|Veh") %>%
@@ -42,8 +42,12 @@ ht <- Heatmap(t(scale(t(hm.f[,expr_cols]))), name = "expression", column_labels 
               row_labels = hm.f$id)
 
 draw(ht, merge_legend = TRUE, padding = unit(c(2, 2, 2, 5), "mm"))
+height = 0.25*(nrow(hm.f))
+if (nrow(hm.f)<=6) {
+  height = 0.25*(nrow(hm.f)+4.5)
+}
 
-png(paste("sarah_new_heatmap_exprs_S", segment,"_005_05.png", sep=""), width = 6, height = 0.25*(nrow(hm.f)), units="in", res=100)
+png(paste0("../plots/degs_heatmaps/heatmap_degs_S", segment,"_adjp005_lfc05.png"), width = 6, height = height, units="in", res=100)
 draw(ht, merge_legend = TRUE, padding = unit(c(2, 2, 2, 5), "mm"))
 dev.off()
 
@@ -58,9 +62,18 @@ autoplot(pca, data = anno_df,
          label.show.legend = F,
          frame.colour = 'group') +
   scale_color_manual(values = gcols) +
-  scale_fill_manual(values = gcols)
+  scale_fill_manual(values = gcols) +
+  scale_y_continuous(
+    breaks  = seq(-2, 2, by = 1),
+    limits = c(-2.2,2.2)
+  ) +
+  scale_x_continuous(
+    breaks  = seq(-2, 2, by = 1),
+    limits = c(-2.2,2.2)
+  ) +  
+  coord_fixed(ratio = 1)
 
-ggsave(paste("sarah_new_pca_S",segment,".png", sep=""), width = 7, height = 6, scale = 0.8, dpi = 100)
+ggsave(paste("../plots/pca/pca_S",segment,".png", sep=""), width = 5.5, height = 5, scale = 0.8, dpi = 100)
 
 ### Volcano
 EnhancedVolcano(
@@ -69,8 +82,9 @@ EnhancedVolcano(
   x = paste0("logFC_WT",segment,".over.Veh", segment),
   y = paste0("adj.P.Val_WT",segment,".over.Veh", segment),
   ylim = c(0, 3),
+  xlim = c(-6,6),
   pCutoff = 0.05,
-  FCcutoff = 1,
+  FCcutoff = 0.5,
   pointSize = 2.0,
   labSize = 5.0,
   title = NULL,
@@ -81,7 +95,6 @@ EnhancedVolcano(
   legendPosition = "top"
 ) +
 theme(
-#  legend.position.inside    = c(0.01, 0.98),
   legend.box.spacing = unit(0, "pt"),
   legend.position      = "top",
   legend.justification = "left",
@@ -89,23 +102,27 @@ theme(
   legend.box.margin    = margin(t = 0, r = 0, b = 0, l = -35, unit = "pt")
 )
 
-ggsave(paste("sarah_new_volcano_S",segment,".png", sep=""), width = 7, height = 7.5, scale = 0.8, dpi = 100)
+ggsave(paste0("../plots/volcano/volcano_S",segment,"_adjp005_lfc05.png"), width = 7, height = 7.5, scale = 0.8, dpi = 100)
 
 ### Heatmap for selected proteins
-
-sp <- read_excel("220525 Protein list of interest_metabolism.xlsx", col_names = F)
+sp <- read_excel("../data/220525 Protein list of interest_metabolism.xlsx", col_names = F)
 colnames(sp) <- c("id", "pathway")
 pathways <- levels(factor(sp$pathway))
-i=1
-hm.f <- hm[which(hm$id %in% sp[which(sp$pathway %in% pathways[i]),]$id),]
 
-gcols=c("WT"="#808080", "Veh"="#ff8000", "treated"="#0000ff")
-cha = HeatmapAnnotation(df = anno_df[,1,drop=F], col = list(group=gcols))
-ht <- Heatmap(t(scale(t(hm.f[,expr_cols]))), column_title = pathways[i], heatmap_legend_param = list(title = "expression"),
-              column_labels = anno_df$sample, top_annotation = cha,
-              row_labels = hm.f$id)
-ht
-
-png(paste0("heatmap S", segment, " ", gsub("/", " ", pathways[i]),".png"), width = 6, height = 0.25*(nrow(hm.f)), units="in", res=100)
-draw(ht, merge_legend = TRUE, padding = unit(c(2, 2, 2, 5), "mm"))
-dev.off()
+for (i in 1:length(pathways)) {
+  hm.f <- hm[which(hm$id %in% sp[which(sp$pathway %in% pathways[i]),]$id),]
+  
+  gcols=c("WT"="#808080", "Veh"="#ff8000", "treated"="#0000ff")
+  cha = HeatmapAnnotation(df = anno_df[,1,drop=F], col = list(group=gcols))
+  ht <- Heatmap(t(scale(t(hm.f[,expr_cols]))), column_title = pathways[i], heatmap_legend_param = list(title = "expression"),
+                column_labels = anno_df$sample, top_annotation = cha,
+                row_labels = hm.f$id)
+  height = 0.25*(nrow(hm.f))
+  if (nrow(hm.f)<=6) {
+    height = 0.25*(nrow(hm.f)+4.5)
+  }
+  png(paste0("../plots/selected_heatmaps/heatmap S", segment, " ", gsub("/", " ", pathways[i]),".png"),
+      width = 6, height = height, units="in", res=100)
+  draw(ht, merge_legend = TRUE, padding = unit(c(2, 2, 2, 5), "mm"))
+  dev.off()
+}
