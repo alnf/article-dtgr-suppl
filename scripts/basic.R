@@ -1,24 +1,13 @@
 library(ComplexHeatmap)
-library(readxl)
 library(ggplot2)
 library(ggfortify)
 library(EnhancedVolcano)
 library(stringr)
+source("utils.R")
 
 ### Read data
 segment = 5
-
-hm <- read_excel(paste0("../data/Segment ", segment, "_Proteome Data_Für Alina.xlsx"))
-hm <- data.frame(hm)
-rownames(hm) <- hm$id
-colnames(hm)
-
-fc_cols <- c(paste("logFC_WT",segment,".over.Veh", segment, sep=""))
-fc_cols_names <- c("WT vs Veh")
-
-hm$id <- sapply(strsplit(hm$id,"_"), `[`, 1)
-hm$id[which(hm$id=="")] = rownames(hm)[which(hm$id=="")]
-hm$id = gsub("_", "", hm$id)
+hm <- readSegmentData(segment)
 
 ### Expression heatmap
 expr_cols <- c(23:ncol(hm))
