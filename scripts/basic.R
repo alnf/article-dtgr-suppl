@@ -6,7 +6,7 @@ library(stringr)
 source("utils.R")
 
 ### Read data
-segment = 5
+segment = 3
 hm <- readSegmentData(segment)
 
 ### Expression heatmap
@@ -46,7 +46,7 @@ pca <- prcomp(t(hm[,expr_cols]))
 
 autoplot(pca, data = anno_df,
          colour = 'group',
-         #label = TRUE, label.label = "sample", label.repel=T,
+         label = TRUE, label.label = "sample", label.repel=T,
          frame=T, frame.type="norm",
          label.show.legend = F,
          frame.colour = 'group') +
@@ -100,18 +100,21 @@ pathways <- levels(factor(sp$pathway))
 
 for (i in 1:length(pathways)) {
   hm.f <- hm[which(hm$id %in% sp[which(sp$pathway %in% pathways[i]),]$id),]
+  hm.f <- hm.f[hm.f[,paste("P.Value_WT",segment,".over.Veh", segment, sep="")]<=0.01,]
   
-  gcols=c("WT"="#808080", "Veh"="#ff8000", "treated"="#0000ff")
-  cha = HeatmapAnnotation(df = anno_df[,1,drop=F], col = list(group=gcols))
-  ht <- Heatmap(t(scale(t(hm.f[,expr_cols]))), column_title = pathways[i], heatmap_legend_param = list(title = "expression"),
+  if (nrow(hm.f)>0) {
+    gcols=c("WT"="#808080", "Veh"="#ff8000", "treated"="#0000ff")
+    cha = HeatmapAnnotation(df = anno_df[,1,drop=F], col = list(group=gcols))
+    ht <- Heatmap(t(scale(t(hm.f[,expr_cols]))), column_title = pathways[i], heatmap_legend_param = list(title = "expression"),
                 column_labels = anno_df$sample, top_annotation = cha,
                 row_labels = hm.f$id)
-  height = 0.25*(nrow(hm.f))
-  if (nrow(hm.f)<=6) {
-    height = 0.25*(nrow(hm.f)+4.5)
+    height = 0.25*(nrow(hm.f))
+    if (nrow(hm.f)<=10) {
+      height = 0.25*(nrow(hm.f)+6)
+    }
+    png(paste0("../plots/selected_heatmaps/pval/heatmap S", segment, " ", gsub("/", " ", pathways[i]),".png"),
+        width = 6, height = height, units="in", res=100)
+    draw(ht, merge_legend = TRUE, padding = unit(c(2, 2, 2, 5), "mm"))
+    dev.off()
   }
-  png(paste0("../plots/selected_heatmaps/heatmap S", segment, " ", gsub("/", " ", pathways[i]),".png"),
-      width = 6, height = height, units="in", res=100)
-  draw(ht, merge_legend = TRUE, padding = unit(c(2, 2, 2, 5), "mm"))
-  dev.off()
 }
