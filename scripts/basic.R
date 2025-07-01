@@ -6,47 +6,26 @@ library(stringr)
 source("utils.R")
 
 ### Read data
-segment = 3
+segment = 4
 hm <- readSegmentData(segment)
 
-### Expression heatmap
+# Select needed columns
 expr_cols <- c(23:ncol(hm))
 expr_cols <- colnames(hm[,expr_cols]) %>%
   str_subset("WT|Veh") %>%
   str_subset("treated", negate = TRUE)
 expr_cols <- which(colnames(hm) %in% expr_cols)
-
+# Prepare annotation table
 anno_df <- data.frame(row.names = colnames(hm)[expr_cols], group = colnames(hm)[expr_cols], sample = colnames(hm)[expr_cols])
 anno_df$group <- sapply(strsplit(anno_df$group,"_"), `[`, 1)
 anno_df$sample <- sapply(strsplit(anno_df$sample,"_", fixed=T), `[`, 3)
 
-# 0.05
-hm.f <- hm[abs(hm[,paste("logFC_WT",segment,".over.Veh", segment, sep="")])>0.5,]
-hm.f <- hm.f[hm.f[,paste("adj.P.Val_WT",segment,".over.Veh", segment, sep="")]<=0.05,]
-
-gcols=c("WT"="#808080", "Veh"="#ff8000", "treated"="#0000ff")
-
-cha = HeatmapAnnotation(df = anno_df[,1,drop=F], col = list(group=gcols))
-ht <- Heatmap(t(scale(t(hm.f[,expr_cols]))), name = "expression", column_labels = anno_df$sample, top_annotation = cha,
-              row_labels = hm.f$id)
-
-draw(ht, merge_legend = TRUE, padding = unit(c(2, 2, 2, 5), "mm"))
-height = 0.25*(nrow(hm.f))
-if (nrow(hm.f)<=6) {
-  height = 0.25*(nrow(hm.f)+4.5)
-}
-
-png(paste0("../plots/degs_heatmaps/heatmap_degs_S", segment,"_adjp005_lfc05.png"), width = 6, height = height, units="in", res=100)
-draw(ht, merge_legend = TRUE, padding = unit(c(2, 2, 2, 5), "mm"))
-dev.off()
-
 ### PCA
-
 pca <- prcomp(t(hm[,expr_cols]))
 
 autoplot(pca, data = anno_df,
          colour = 'group',
-         label = TRUE, label.label = "sample", label.repel=T,
+         #label = TRUE, label.label = "sample", label.repel=T,
          frame=T, frame.type="norm",
          label.show.legend = F,
          frame.colour = 'group') +
@@ -63,6 +42,7 @@ autoplot(pca, data = anno_df,
   coord_fixed(ratio = 1)
 
 ggsave(paste("../plots/pca/pca_S",segment,".png", sep=""), width = 5.5, height = 5, scale = 0.8, dpi = 100)
+ggsave(paste("../plots/pca/pca_S",segment,".eps", sep=""), device=cairo_ps, width = 5.5, height = 5, scale = 0.8, dpi = 100)
 
 ### Volcano
 EnhancedVolcano(
@@ -92,6 +72,44 @@ theme(
 )
 
 ggsave(paste0("../plots/volcano/volcano_S",segment,"_adjp005_lfc05.png"), width = 7, height = 7.5, scale = 0.8, dpi = 100)
+ggsave(paste0("../plots/volcano/volcano_S",segment,"_adjp005_lfc05.eps"), device=cairo_ps, width = 7, height = 7.5, scale = 0.8, dpi = 100)
+
+### DEGs heatmap
+# 0.05
+hm.f <- hm[abs(hm[,paste("logFC_WT",segment,".over.Veh", segment, sep="")])>0.5,]
+hm.f <- hm.f[hm.f[,paste("adj.P.Val_WT",segment,".over.Veh", segment, sep="")]<=0.05,]
+
+gcols=c("WT"="#808080", "Veh"="#ff8000", "treated"="#0000ff")
+
+scaled_mat <- scale(t(hm.f[,expr_cols]))
+cha_horizontal <- rowAnnotation(df = anno_df[,1,drop=F], col = list(group = gcols))
+ht_horizontal <- Heatmap(scaled_mat, 
+                         name = "expression",
+                         row_labels = anno_df$sample,
+                         column_labels = hm.f$id,
+                         left_annotation = cha_horizontal)
+draw(ht_horizontal, merge_legend = TRUE, padding = unit(c(2, 2, 2, 5), "mm"))
+width = 0.23*(nrow(hm.f))
+if (nrow(hm.f)<=6) {
+ width = 0.23*(nrow(hm.f)+4.5)
+}
+if (nrow(hm.f)<=3) {
+  width = 0.23*(nrow(hm.f)+9)
+}
+if (nrow(hm.f)<=20) {
+  width = 0.24*(nrow(hm.f)+4.5)
+}
+
+postscript(paste0("../plots/degs_heatmaps/heatmap_degs_S", segment,"_adjp005_lfc05.eps"), width = width, height = 3.3,
+           horizontal = FALSE, 
+           onefile = FALSE, 
+           paper = "special")
+draw(ht_horizontal, merge_legend = TRUE, padding = unit(c(2, 2, 2, 5), "mm"))
+dev.off()
+
+png(paste0("../plots/degs_heatmaps/heatmap_degs_S", segment,"_adjp005_lfc05.png"), width = width, height = 3.3, units="in", res=100)
+draw(ht_horizontal, merge_legend = TRUE, padding = unit(c(2, 2, 2, 5), "mm"))
+dev.off()
 
 ### Heatmap for selected proteins
 sp <- read_excel("../data/220525 Protein list of interest_metabolism.xlsx", col_names = F)
@@ -103,18 +121,25 @@ for (i in 1:length(pathways)) {
   hm.f <- hm.f[hm.f[,paste("P.Value_WT",segment,".over.Veh", segment, sep="")]<=0.01,]
   
   if (nrow(hm.f)>0) {
-    gcols=c("WT"="#808080", "Veh"="#ff8000", "treated"="#0000ff")
-    cha = HeatmapAnnotation(df = anno_df[,1,drop=F], col = list(group=gcols))
-    ht <- Heatmap(t(scale(t(hm.f[,expr_cols]))), column_title = pathways[i], heatmap_legend_param = list(title = "expression"),
-                column_labels = anno_df$sample, top_annotation = cha,
-                row_labels = hm.f$id)
-    height = 0.25*(nrow(hm.f))
-    if (nrow(hm.f)<=10) {
-      height = 0.25*(nrow(hm.f)+6)
+    scaled_mat <- scale(t(hm.f[,expr_cols]))
+    cha_horizontal <- rowAnnotation(df = anno_df[,1,drop=F], col = list(group = gcols))
+    ht_horizontal <- Heatmap(scaled_mat, column_title = pathways[i], heatmap_legend_param = list(title = "expression"),
+                             row_labels = anno_df$sample,
+                             column_labels = hm.f$id,
+                             left_annotation = cha_horizontal)
+    width = 0.23*(nrow(hm.f))
+    if (nrow(hm.f)<=11) {
+      width = 0.25*(nrow(hm.f)+8)
     }
-    png(paste0("../plots/selected_heatmaps/pval/heatmap S", segment, " ", gsub("/", " ", pathways[i]),".png"),
-        width = 6, height = height, units="in", res=100)
-    draw(ht, merge_legend = TRUE, padding = unit(c(2, 2, 2, 5), "mm"))
+    png(paste0("../plots/selected_heatmaps/S", segment, "/heatmap S", segment, " ", gsub("/", " ", pathways[i]),".png"),
+        width = width, height = 3.3, units="in", res=100)
+    draw(ht_horizontal, merge_legend = TRUE, padding = unit(c(2, 2, 2, 5), "mm"))
     dev.off()
+    postscript(paste0("../plots/selected_heatmaps/S", segment, "/heatmap S", segment, " ", gsub("/", " ", pathways[i]),".eps"), width = width, height = 3.3,
+               horizontal = FALSE, 
+               onefile = FALSE, 
+               paper = "special")
+    draw(ht_horizontal, merge_legend = TRUE, padding = unit(c(2, 2, 2, 5), "mm"))
+    dev.off()    
   }
 }
