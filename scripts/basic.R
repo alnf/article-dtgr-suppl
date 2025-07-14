@@ -6,7 +6,7 @@ library(stringr)
 source("utils.R")
 
 ### Read data
-segment = 4
+segment = 2
 hm <- readSegmentData(segment)
 
 # Select needed columns
@@ -19,6 +19,7 @@ expr_cols <- which(colnames(hm) %in% expr_cols)
 anno_df <- data.frame(row.names = colnames(hm)[expr_cols], group = colnames(hm)[expr_cols], sample = colnames(hm)[expr_cols])
 anno_df$group <- sapply(strsplit(anno_df$group,"_"), `[`, 1)
 anno_df$sample <- sapply(strsplit(anno_df$sample,"_", fixed=T), `[`, 3)
+anno_df$group[which(anno_df$group=="Veh")] <- "dTGR"
 
 ### PCA
 pca <- prcomp(t(hm[,expr_cols]))
@@ -45,6 +46,8 @@ ggsave(paste("../plots/pca/pca_S",segment,".png", sep=""), width = 5.5, height =
 ggsave(paste("../plots/pca/pca_S",segment,".eps", sep=""), device=cairo_ps, width = 5.5, height = 5, scale = 0.8, dpi = 100)
 
 ### Volcano
+hm[,paste0("logFC_WT",segment,".over.Veh", segment)] <- -hm[,paste0("logFC_WT",segment,".over.Veh", segment)]
+
 EnhancedVolcano(
   hm,
   lab = hm$id,
@@ -79,7 +82,7 @@ ggsave(paste0("../plots/volcano/volcano_S",segment,"_adjp005_lfc05.eps"), device
 hm.f <- hm[abs(hm[,paste("logFC_WT",segment,".over.Veh", segment, sep="")])>0.5,]
 hm.f <- hm.f[hm.f[,paste("adj.P.Val_WT",segment,".over.Veh", segment, sep="")]<=0.05,]
 
-gcols=c("WT"="#808080", "Veh"="#ff8000", "treated"="#0000ff")
+gcols=c("WT"="#808080", "Veh"="#ff8000", "treated"="#0000ff", "dTGR"="#ff8000")
 
 scaled_mat <- scale(t(hm.f[,expr_cols]))
 cha_horizontal <- rowAnnotation(df = anno_df[,1,drop=F], col = list(group = gcols))
@@ -90,15 +93,17 @@ ht_horizontal <- Heatmap(scaled_mat,
                          left_annotation = cha_horizontal)
 draw(ht_horizontal, merge_legend = TRUE, padding = unit(c(2, 2, 2, 5), "mm"))
 width = 0.23*(nrow(hm.f))
+if (nrow(hm.f)<=20) {
+  width = 0.24*(nrow(hm.f)+4.5)
+}
 if (nrow(hm.f)<=6) {
  width = 0.23*(nrow(hm.f)+4.5)
 }
 if (nrow(hm.f)<=3) {
   width = 0.23*(nrow(hm.f)+9)
+  print(width)
 }
-if (nrow(hm.f)<=20) {
-  width = 0.24*(nrow(hm.f)+4.5)
-}
+
 
 postscript(paste0("../plots/degs_heatmaps/heatmap_degs_S", segment,"_adjp005_lfc05.eps"), width = width, height = 3.3,
            horizontal = FALSE, 
