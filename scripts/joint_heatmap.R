@@ -1,6 +1,9 @@
 library(RColorBrewer)
 library(readxl)
 library(dplyr)
+library(tidyr)
+library(tibble)
+library(ComplexHeatmap)
 
 segment = 3
 hm <- readSegmentData(segment)
