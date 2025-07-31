@@ -128,8 +128,8 @@ gene_order <- gene_clust$order
 # Reorder hm.f and pathway_mat by clustered gene order
 hm.f <- hm.f[gene_order, ]
 pathway_mat <- pathway_mat[gene_order, ]
-pathway_mat <- rbind(pathway_mat[-7, , drop = FALSE],
-                     pathway_mat[ 7, , drop = FALSE])
+#pathway_mat <- rbind(pathway_mat[-7, , drop = FALSE],
+#                     pathway_mat[ 7, , drop = FALSE])
 
 # Now create pathway_anno and heatmap as before
 pathway_anno <- HeatmapAnnotation(

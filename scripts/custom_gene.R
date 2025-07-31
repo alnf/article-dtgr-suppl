@@ -58,3 +58,63 @@ if (nrow(hm.f)<=11) {
 
 draw(ht_horizontal, merge_legend = TRUE, padding = unit(c(2, 2, 2, 5), "mm"))
 
+
+## Violin plot
+
+genename = "BDH1"
+genename = "OXCT1"
+genename = "ACAT1"
+hm.f <- hm[which(toupper(hm$id) == genename),]
+hm.f[,expr_cols]
+anno_df
+
+
+expr_df <- hm.f[,expr_cols] %>%
+  as.data.frame() %>% 
+  rownames_to_column("feature") %>% 
+#  filter(feature == "Bdh1_A0A0G2JSH2") %>%
+  dplyr::select(-feature) %>% 
+  pivot_longer(
+    cols      = everything(),
+    names_to  = "sample",
+    values_to = "expression"
+  )
+
+anno_df$sample <- rownames(anno_df)
+# 2. Join to your annotation to get group info
+plot_df <- expr_df %>%
+  left_join(anno_df, by = "sample")
+
+# 3. Violin plot
+gcols=c("WT"="#808080", "dTGR"="#ff8000")
+
+p.adj <- hm.f[,paste("adj.P.Val_WT",segment,".over.Veh", segment, sep="")]
+
+ymax   <- max(plot_df$expression)
+y.label <- ymax + 0.05 * (ymax - min(plot_df$expression))
+
+ggplot(plot_df, aes(x = group, y = expression, fill = group)) +
+  geom_violin(trim = FALSE, alpha = 0.6) +
+  geom_boxplot(width = 0.1, outlier.shape = NA) +   # overlay a narrow boxplot
+  geom_jitter(width = 0.15, size = 1, alpha = 0.8) + # show individual points
+  scale_fill_manual(values = gcols) +
+  annotate(
+    "text",
+    x     = 1.5,                                           # between the two groups
+    y     = y.label+0.5,
+    label = paste0("adj. pval = ", signif(p.adj, 2)),
+    size  = 5,
+    fontface = "italic"
+  ) +
+  labs(
+    title = paste0(genename, " expression by group"),
+    x     = "Group",
+    y     = "log2 expression"
+  ) +
+  theme_bw() +
+  theme(
+    legend.position = "none",
+    axis.text.x     = element_text(angle = 45, hjust = 1)
+  )
+
+ggsave(paste("../plots/S",segment,"_",genename,".png", sep=""), width = 5.5, height = 5, scale = 0.8, dpi = 100)
